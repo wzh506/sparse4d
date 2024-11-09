@@ -1,5 +1,5 @@
 *.pyc
 *.npy
 *.pth
-/mmdetection3d
+/mmdetection3d1
 /mmcv
