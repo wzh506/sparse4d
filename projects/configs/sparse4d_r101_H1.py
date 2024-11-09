@@ -143,7 +143,7 @@ model = dict(
         ),
     ),
 )
-
+ #这里修改一下数据集的路径
 dataset_type = 'NuScenes3DDetTrackDataset'
 data_root = 'data/nuscenes/'
 anno_root = 'data/nuscenes_cam/'

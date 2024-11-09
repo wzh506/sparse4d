@@ -1,4 +1,4 @@
-export CUDA_VISIBLE_DEVICES=0,1,2,3
+export CUDA_VISIBLE_DEVICES=0,1
 export PYTHONPATH=$PYTHONPATH:./
 
 gpus=(${CUDA_VISIBLE_DEVICES//,/ })
@@ -18,3 +18,4 @@ else
     python ./tools/train.py \
         ${config}
 fi
+# bash local_train.sh sparse4d_r101_H1.py
