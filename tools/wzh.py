@@ -1,9 +1,9 @@
-# Copyright (c) OpenMMLab. All rights reserved.
 from __future__ import division
 import sys
 import os
 
 print(sys.executable, os.path.abspath(__file__))
+sys.path.append('/home/wzh/study/github/3D object detection/Sparse4D')#额外配置路径，否则无法找到mmdet3d
 # import init_paths # for conda pkgs submitting method
 import argparse
 import copy
@@ -24,7 +24,7 @@ from mmdet3d.utils import collect_env, get_root_logger
 from mmdet.apis import set_random_seed
 from mmseg import __version__ as mmseg_version
 from torch import distributed as dist
-
+from train import parse_args
 import cv2
 
 cv2.setNumThreads(8)
@@ -34,103 +34,20 @@ print('------------------------------------------------------------------------'
 print('os',os.getcwd())
 
 
-def parse_args():
-    parser = argparse.ArgumentParser(description="Train a detector")
-    parser.add_argument("config", help="train config file path")
-    parser.add_argument("--work-dir", help="the dir to save logs and models")
-    parser.add_argument(
-        "--resume-from", help="the checkpoint file to resume from"
-    )
-    parser.add_argument(
-        "--no-validate",
-        action="store_true",
-        help="whether not to evaluate the checkpoint during training",
-    )
-    group_gpus = parser.add_mutually_exclusive_group()
-    group_gpus.add_argument(
-        "--gpus",
-        type=int,
-        help="number of gpus to use "
-        "(only applicable to non-distributed training)",
-    )
-    group_gpus.add_argument(
-        "--gpu-ids",
-        type=int,
-        nargs="+",
-        help="ids of gpus to use "
-        "(only applicable to non-distributed training)",
-    )
-    parser.add_argument("--seed", type=int, default=0, help="random seed")
-    parser.add_argument(
-        "--deterministic",
-        action="store_true",
-        help="whether to set deterministic options for CUDNN backend.",
-    )
-    parser.add_argument(
-        "--options",
-        nargs="+",
-        action=DictAction,
-        help="override some settings in the used config, the key-value pair "
-        "in xxx=yyy format will be merged into config file (deprecate), "
-        "change to --cfg-options instead.",
-    )
-    parser.add_argument(
-        "--cfg-options",
-        nargs="+",
-        action=DictAction,
-        help="override some settings in the used config, the key-value pair "
-        "in xxx=yyy format will be merged into config file. If the value to "
-        'be overwritten is a list, it should be like key="[a,b]" or key=a,b '
-        'It also allows nested list/tuple values, e.g. key="[(a,b),(c,d)]" '
-        "Note that the quotation marks are necessary and that no white space "
-        "is allowed.",
-    )
-    parser.add_argument(
-        "--dist-url",
-        type=str,
-        default="auto",
-        help="dist url for init process, such as tcp://localhost:8000",
-    )
-    parser.add_argument("--gpus-per-machine", type=int, default=8)
-    parser.add_argument(
-        "--launcher",
-        choices=["none", "pytorch", "slurm", "mpi", "mpi_nccl"],
-        default="none",
-        help="job launcher",
-    )
-    parser.add_argument("--local_rank", type=int, default=0)
-    parser.add_argument(
-        "--autoscale-lr",
-        action="store_true",
-        help="automatically scale lr with the number of gpus",
-    )
-    args = parser.parse_args()
-    if "LOCAL_RANK" not in os.environ:
-        os.environ["LOCAL_RANK"] = str(args.local_rank)
 
-    if args.options and args.cfg_options:
-        raise ValueError(
-            "--options and --cfg-options cannot be both specified, "
-            "--options is deprecated in favor of --cfg-options"
-        )
-    if args.options:
-        warnings.warn("--options is deprecated in favor of --cfg-options")
-        args.cfg_options = args.options
-
-    return args
-
-
-def main():
+# python tools/wzh.py projects/configs/sparse4d_r101_H1.py --work-dir=work_dirs/sparse4d_r101_H1
+# 目标：创建一个model以及一个dataset，然后forward，其他的不管
+if __name__ == "__main__":
     args = parse_args()
 
     cfg = Config.fromfile(args.config)
     if args.cfg_options is not None:
         cfg.merge_from_dict(args.cfg_options)
-        # print('1asqasas1111111111111111111111111111111111111111')
+        print('ok2-----------------------------------')
     # import modules from string list.
     if cfg.get("custom_imports", None):
         from mmcv.utils import import_modules_from_strings
-        # print('ok1111111111111111111111111111111111111111')
+        print('ok1---------------------------------')
         import_modules_from_strings(**cfg["custom_imports"])
 
     # import modules from plguin/xx, registry will be updated
@@ -146,7 +63,7 @@ def main():
 
                 for m in _module_dir[1:]:
                     _module_path = _module_path + "." + m
-                print('_module_path1',_module_path)
+                print('_module_path1:',_module_path)
                 plg_lib = importlib.import_module(_module_path)
             else:
                 # import dir is the dirpath for the config file
@@ -155,7 +72,7 @@ def main():
                 _module_path = _module_dir[0]
                 for m in _module_dir[1:]:
                     _module_path = _module_path + "." + m
-                print('_module_path2',_module_path)
+                print('_module_path1',_module_path)
                 plg_lib = importlib.import_module(_module_path)
             from projects.mmdet3d_plugin.apis.train import custom_train_model
 
@@ -222,7 +139,7 @@ def main():
         cfg.gpu_ids = range(world_size)
 
     # create work_dir
-    mmcv.mkdir_or_exist(osp.abspath(cfg.work_dir))
+    # mmcv.mkdir_or_exist(osp.abspath(cfg.work_dir))
     # dump config
     # print('cfg.work_dir',cfg.work_dir)
 
@@ -269,64 +186,4 @@ def main():
     meta["seed"] = args.seed
     meta["exp_name"] = osp.basename(args.config)
 
-    model = build_model(
-        cfg.model, train_cfg=cfg.get("train_cfg"), test_cfg=cfg.get("test_cfg")
-    )
-    model.init_weights()
-
-    logger.info(f"Model:\n{model}")
-    datasets = [build_dataset(cfg.data.train)]
-    if len(cfg.workflow) == 2:
-        val_dataset = copy.deepcopy(cfg.data.val)
-        # in case we use a dataset wrapper
-        if "dataset" in cfg.data.train:
-            val_dataset.pipeline = cfg.data.train.dataset.pipeline
-        else:
-            val_dataset.pipeline = cfg.data.train.pipeline
-        # set test_mode=False here in deep copied config
-        # which do not affect AP/AR calculation later
-        # refer to https://mmdetection3d.readthedocs.io/en/latest/tutorials/customize_runtime.html#customize-workflow  # noqa
-        val_dataset.test_mode = False
-        datasets.append(build_dataset(val_dataset))
-    if cfg.checkpoint_config is not None:
-        # save mmdet version, config file content and class names in
-        # checkpoints as meta data
-        cfg.checkpoint_config.meta = dict(
-            mmdet_version=mmdet_version,
-            mmseg_version=mmseg_version,
-            mmdet3d_version=mmdet3d_version,
-            config=cfg.pretty_text,
-            CLASSES=datasets[0].CLASSES,
-            PALETTE=datasets[0].PALETTE  # for segmentors
-            if hasattr(datasets[0], "PALETTE")
-            else None,
-        )
-    # add an attribute for visualization convenience
-    model.CLASSES = datasets[0].CLASSES
-    if hasattr(cfg, "plugin"):
-        custom_train_model(
-            model,
-            datasets,
-            cfg,
-            distributed=distributed,
-            validate=(not args.no_validate),
-            timestamp=timestamp,
-            meta=meta,
-        )
-    else:
-        train_model(
-            model,
-            datasets,
-            cfg,
-            distributed=distributed,
-            validate=(not args.no_validate),
-            timestamp=timestamp,
-            meta=meta,
-        )
-
-
-if __name__ == "__main__":
-    torch.multiprocessing.set_start_method(
-        "fork"
-    )  # use fork workers_per_gpu can be > 1
-    main()
+    model = build_model(cfg.model, train_cfg=cfg.get("train_cfg"), test_cfg=cfg.get("test_cfg"))

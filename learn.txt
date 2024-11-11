@@ -1,3 +1,6 @@
 1.报错：AssertionError: active_rotated_filter_forward miss in module _ext
 解决：经过排查发现是mmcv库的问题，经过多方诊断后最终通过从源代码编译mmcv库解决
 说明：个人认为安装了mmcv-full后mmcv就没用了，而且从源代码编译的其实也是mmcv-full库
+2.报错：AssertionError
+解决：export PYTHONPATH=$PYTHONPATH:./
+说明：一定要设置python搜索的路径，否则会找不到对应的库

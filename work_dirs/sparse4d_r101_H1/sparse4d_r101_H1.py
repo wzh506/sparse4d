@@ -380,4 +380,4 @@ evaluation = dict(
             meta_keys=['timestamp', 'lidar2img'])
     ])
 runner = dict(type='EpochBasedRunner', max_epochs=24)
-gpu_ids = range(0, 2)
+gpu_ids = range(0, 1)

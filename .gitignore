@@ -3,3 +3,4 @@
 *.pth
 /mmdetection3d
 /mmcv
+/work_dirs
